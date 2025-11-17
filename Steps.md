@@ -36,7 +36,7 @@ SELECT * FROM users;
 -- Ver todas as salas
 SELECT * FROM rooms;---
 
-1. Login e autenticação (JWT) por nome
+## 1. Login e autenticação (JWT) por nome
     - Backend (ruby on rails): endpoint que recebe um name, cria (ou reutiliza) um User e devolve os dados em JSON.
         - Adicionei a gema "jwt" no Gemfile para autenticação via token
         - Criei o arquivo backend/app/controllers/concerns/jwt_authenticatable.rb com o concern que valida tokens JWT em todas as requisições, extrai o token do header Authorization e identifica o usuário atual
@@ -55,8 +55,8 @@ SELECT * FROM rooms;---
         - Atualizei frontend/src/App.vue para usar v-app (obrigatório para Vuetify) e RouterView
         - Configurei Vuetify em frontend/src/main.js com temas dark e light, instalando Pinia e Vue Router
 
-2. Lista de salas (Rooms)
-    Backend:
+## 2. Lista de salas (Rooms)
+    - Backend
         - Atualizei o modelo Room em backend/app/models/room.rb com validações, relacionamento has_many :messages, scopes para open/closed, callback before_validation para gerar channel_name único com UUID
         - Criei o RoomsController em backend/app/controllers/rooms_controller.rb com os métodos:
             - index: lista todas as salas (abertas e fechadas) separadas por status
@@ -68,7 +68,7 @@ SELECT * FROM rooms;---
         - Criei o RoomsChannel em backend/app/channels/application_cable/rooms_channel.rb para broadcast de eventos de salas
         - Configurei ActionCable em backend/config/environments/development.rb com allowed_request_origins para permitir conexões WebSocket do frontend e disable_request_forgery_protection = true
         - Adicionei rota mount ActionCable.server => '/cable' em config/routes.rb
-    Frontend:
+    - Frontend
         - Criei o arquivo frontend/src/stores/rooms.js com store Pinia que gerencia estado das salas, métodos fetchRooms, createRoom, closeRoom, deleteRoom, getters openRooms e closedRooms
         - Criei o arquivo frontend/src/views/RoomsView.vue com:
             - Tabs para alternar entre salas ativas e concluídas
@@ -85,7 +85,7 @@ SELECT * FROM rooms;---
         - Configurei conexão WebSocket dinâmica baseada na URL do backend Rails
 
 
-3. Visualização e envio de mensagens
+## 3. Visualização e envio de mensagens
     Backend:
         Endpoint GET /rooms/:id/messages (histórico)
         Endpoint POST /rooms/:id/messages (enviar mensagem)
