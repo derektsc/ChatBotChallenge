@@ -90,12 +90,10 @@ const isMyMessage = (message) => {
 // Obtém as mensagens da sala atual
 const messages = computed(() => {
   if (!props.room?.id) {
-    console.log('ChatView: Sem room ID')
     return []
   }
   
   const roomMessages = messagesStore.getMessagesByRoom(props.room.id)
-  console.log('ChatView: Mensagens para sala', props.room.id, ':', roomMessages)
   return roomMessages || []
 })
 
@@ -115,7 +113,6 @@ watch(
   () => props.room?.id,
   async (newRoomId, oldRoomId) => {
     if (newRoomId && newRoomId !== oldRoomId) {
-      console.log('ChatView: Sala mudou, carregando mensagens para:', newRoomId)
       await loadMessages()
     }
   },
@@ -144,13 +141,7 @@ watch(
 
     <!-- Área de mensagens -->
     <div ref="messagesContainer" class="messages-container">
-      <!-- Debug info (remover depois) -->
-      <div v-if="false" class="debug-info pa-2 mb-2" style="background: yellow; color: black; font-size: 10px;">
-        Room ID: {{ room?.id }}<br>
-        Messages count: {{ messages.length }}<br>
-        Loading: {{ messagesStore.loading }}
-      </div>
-
+     
       <!-- Loading -->
       <div v-if="messagesStore.loading" class="text-center py-8">
         <v-progress-circular

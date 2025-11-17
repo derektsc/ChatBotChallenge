@@ -1,4 +1,3 @@
-# backend/app/channels/rooms_channel.rb
 # Channel para broadcast de eventos relacionados a salas
 # Quando uma sala é criada, atualizada ou excluída, todos os usuários conectados recebem a atualização
 

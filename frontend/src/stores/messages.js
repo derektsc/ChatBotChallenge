@@ -7,11 +7,11 @@ const API_BASE_URL = 'http://localhost:3000'
 
 export const useMessagesStore = defineStore('messages', {
   state: () => ({
-    messages: {},        // { roomId: [messages] } - mensagens por sala
-    loading: false,      // Estado de carregamento
-    error: null,        // Mensagem de erro
-    sending: {},        // { roomId: boolean } - estado de envio por sala
-    unreadCounts: {},   // { roomId: number } - contador de mensagens não lidas
+    messages: {}, // { roomId: [messages] } - mensagens por sala
+    loading: false, // Estado de carregamento
+    error: null, // Mensagem de erro
+    sending: {}, // { roomId: boolean } - estado de envio por sala
+    unreadCounts: {}, // { roomId: number } - contador de mensagens não lidas
     lastReadMessage: {} // { roomId: messageId } - última mensagem lida por sala
   }),
 

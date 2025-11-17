@@ -35,19 +35,19 @@ const vuetify = createVuetify({
         dark: true,
         colors: {
           // Paleta principal - tons de azul/roxo modernos
-          primary: '#667eea',        // Azul-roxo vibrante
-          secondary: '#764ba2',       // Roxo profundo
-          accent: '#f093fb',          // Rosa suave
+          primary: '#667eea', // Azul-roxo vibrante
+          secondary: '#764ba2', // Roxo profundo
+          accent: '#f093fb',  // Rosa suave
           
           // Cores de feedback
-          error: '#ef4444',           // Vermelho
-          info: '#3b82f6',            // Azul
-          success: '#10b981',         // Verde
-          warning: '#f59e0b',         // Laranja
+          error: '#ef4444', // Vermelho
+          info: '#3b82f6', // Azul
+          success: '#10b981', // Verde
+          warning: '#f59e0b', // Laranja
           
           // Cores de fundo - gradiente escuro elegante
-          background: '#0a0e27',      // Azul muito escuro (quase preto)
-          surface: '#1a1f3a',         // Azul escuro
+          background: '#0a0e27', // Azul muito escuro (quase preto)
+          surface: '#1a1f3a', // Azul escuro
           
           // Cores adicionais para melhor contraste
           'surface-variant': '#252b4a',
@@ -59,9 +59,9 @@ const vuetify = createVuetify({
         dark: false,
         colors: {
           // Paleta principal - tons suaves e elegantes
-          primary: '#667eea',        // Azul-roxo (mesmo do dark para consistência)
-          secondary: '#764ba2',       // Roxo profundo
-          accent: '#f093fb',          // Rosa suave
+          primary: '#667eea', // Azul-roxo (mesmo do dark para consistência)
+          secondary: '#764ba2', // Roxo profundo
+          accent: '#f093fb', // Rosa suave
           
           // Cores de feedback
           error: '#ef4444',
@@ -70,8 +70,8 @@ const vuetify = createVuetify({
           warning: '#f59e0b',
           
           // Cores de fundo - branco suave e elegante
-          background: '#f8fafc',      // Cinza muito claro (quase branco)
-          surface: '#ffffff',         // Branco puro
+          background: '#f8fafc', // Cinza muito claro (quase branco)
+          surface: '#ffffff', // Branco puro
           
           // Cores adicionais para melhor contraste
           'surface-variant': '#f1f5f9',

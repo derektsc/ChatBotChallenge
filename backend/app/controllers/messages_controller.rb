@@ -1,7 +1,4 @@
 class MessagesController < ApplicationController
-    # Este controller PRECISA de autenticação JWT
-    # O método authenticate_user! será chamado automaticamente antes de cada ação
-
     # GET /rooms/:room_id/messages - Lista todas as mensagens de uma sala
     def index
         # Busca a sala pelo ID

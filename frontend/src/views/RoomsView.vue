@@ -1,4 +1,3 @@
-<!-- frontend/src/views/RoomsView.vue -->
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -202,10 +201,10 @@ const subscribeToRoom = (roomId) => {
           }
         },
         connected() {
-          console.log(`✅ Conectado à sala ${roomId}`)
+          console.log(`Conectado à sala ${roomId}`)
         },
         disconnected() {
-          console.log(`❌ Desconectado da sala ${roomId}`)
+          console.log(`Desconectado da sala ${roomId}`)
         }
       }
     )
