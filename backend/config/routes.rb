@@ -7,4 +7,18 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+
+  # Rota do ActionCable (WebSocket)
+  mount ActionCable.server => '/cable'
+
+  # Rota de login: o frontend vai enviar um POST para /sessions com { name: "Fulano" }
+  post '/sessions', to: 'sessions#create'
+
+  # Rotas de Rooms (PRECISAM de autenticação JWT)
+  resources :rooms, only: [:index, :show, :create, :destroy] do
+    member do
+      patch :close # PATCH /rooms/:id/close
+    end
+    resources :messages, only: [:index, :create]
+  end
 end

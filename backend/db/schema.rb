@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_11_15_012739) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_15_023305) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -19,6 +19,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_15_012739) do
     t.string "llm_model", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "encrypted_api_key"
   end
 
   create_table "messages", force: :cascade do |t|
