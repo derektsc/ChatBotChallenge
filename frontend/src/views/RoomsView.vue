@@ -1,20 +1,23 @@
+<!-- frontend/src/views/RoomsView.vue -->
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
+import { useDisplay } from 'vuetify'
 import { useAuthStore } from '../stores/auth'
 import { useRoomsStore } from '../stores/rooms'
 import { useThemeStore } from '../stores/theme'
+import { useMessagesStore } from '../stores/messages'
+import ChatView from '../components/ChatView.vue'
 import { createConsumer } from '@rails/actioncable'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const roomsStore = useRoomsStore()
 const themeStore = useThemeStore()
+const messagesStore = useMessagesStore()
+const { mobile } = useDisplay()
 
-// Obtém o tema do Vuetify corretamente
-// useTheme() retorna { theme, global, current }
-// O objeto theme tem o método change()
 const { theme } = useTheme()
 
 // Estado para o diálogo de criar nova sala
@@ -25,8 +28,13 @@ const creatingRoom = ref(false)
 // Tab ativa: 'open' (abertas) ou 'closed' (concluídas)
 const activeTab = ref('open')
 
-// Variável para armazenar a conexão ActionCable
-let cableSubscription = null
+// Estado para controlar sidebar em mobile
+const showSidebar = ref(true) // Sempre começa visível
+
+// Variável para armazenar a conexão ActionCable única
+let cable = null
+let roomsCableSubscription = null
+let roomCableSubscriptions = {} // { roomId: subscription }
 
 // Carrega dados quando o componente é montado
 onMounted(async () => {
@@ -39,77 +47,120 @@ onMounted(async () => {
 
   authStore.setupAxiosInterceptor()
 
-  // Aplica o tema salvo usando theme.change()
   if (theme && typeof theme.change === 'function') {
     theme.change(themeStore.currentTheme)
   }
 
-  // Busca as salas iniciais
   try {
     await roomsStore.fetchRooms()
   } catch (error) {
     console.error('Erro ao carregar salas:', error)
   }
 
-  // Conecta ao ActionCable para receber atualizações em tempo real
+  // Conecta ao ActionCable
   connectToActionCable()
+  
+  // Se inscreve em todas as salas existentes para receber mensagens
+  roomsStore.rooms.forEach(room => {
+    subscribeToRoom(room.id)
+  })
 })
 
-// Limpa a conexão quando o componente é desmontado
-onUnmounted(() => {
-  if (cableSubscription) {
-    cableSubscription.unsubscribe()
+// Observa mudanças no mobile para ajustar sidebar
+watch(mobile, (newValue) => {
+  if (newValue && roomsStore.currentRoom) {
+    // Em mobile, fecha sidebar quando abre chat
+    showSidebar.value = false
+  } else if (!newValue) {
+    // Em desktop, sempre mostra sidebar
+    showSidebar.value = true
   }
 })
 
-// Função para conectar ao ActionCable
+// Observa mudanças nas salas para se inscrever automaticamente
+watch(() => roomsStore.rooms, (newRooms) => {
+  newRooms.forEach(room => {
+    if (!roomCableSubscriptions[room.id]) {
+      subscribeToRoom(room.id)
+    }
+  })
+}, { deep: true })
+
+// Limpa conexões quando o componente é desmontado
+onUnmounted(() => {
+  if (roomsCableSubscription) {
+    roomsCableSubscription.unsubscribe()
+  }
+  // Desconecta de todas as salas
+  Object.values(roomCableSubscriptions).forEach(sub => {
+    if (sub) sub.unsubscribe()
+  })
+  if (cable) {
+    cable.disconnect()
+  }
+})
+
+// Função para criar uma única conexão ActionCable
 const connectToActionCable = () => {
   try {
-    // Detecta a URL do backend dinamicamente
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
     const wsUrl = backendUrl.replace(/^http/, 'ws')
     
-    // Cria a conexão WebSocket com o backend
-    const cable = createConsumer(`${wsUrl}/cable`)
+    // Obtém o token JWT do store
+    const token = authStore.token
     
-    // Se inscreve no channel "RoomsChannel" para receber atualizações
-    cableSubscription = cable.subscriptions.create(
-      { channel: 'ApplicationCable::RoomsChannel' },
+    if (!token) {
+      console.error('Token JWT não encontrado')
+      return
+    }
+    
+    // Cria uma única conexão ActionCable com o token
+    // O token será enviado como query parameter para autenticação
+    cable = createConsumer(`${wsUrl}/cable?token=${encodeURIComponent(token)}`)
+    
+    // Se inscreve no channel geral de salas
+    roomsCableSubscription = cable.subscriptions.create(
+      { channel: 'RoomsChannel' },
       {
-        // Método chamado quando recebe uma mensagem do servidor
         received(data) {
-          console.log('Dados recebidos do ActionCable:', data)
+          console.log('Dados recebidos do ActionCable (Rooms):', data)
           
           if (data.type === 'room_created') {
-            // Verifica se a sala já não existe na lista (evita duplicatas)
             const existingRoom = roomsStore.rooms.find(r => r.id === data.room.id)
             if (!existingRoom) {
-              // Adiciona a nova sala no início da lista
               roomsStore.rooms.unshift(data.room)
+              // Se inscreve automaticamente na nova sala
+              subscribeToRoom(data.room.id)
             }
           } else if (data.type === 'room_closed') {
-            // Atualiza o status da sala
             const room = roomsStore.rooms.find(r => r.id === data.room.id)
             if (room) {
               room.status = 'closed'
             }
           } else if (data.type === 'room_deleted') {
-            // Remove a sala da lista
             roomsStore.rooms = roomsStore.rooms.filter(r => r.id !== data.room_id)
+            if (roomsStore.currentRoom?.id === data.room_id) {
+              roomsStore.clearCurrentRoom()
+            }
+            // Desconecta do ActionCable da sala
+            if (roomCableSubscriptions[data.room_id]) {
+              roomCableSubscriptions[data.room_id].unsubscribe()
+              delete roomCableSubscriptions[data.room_id]
+            }
+          } else if (data.type === 'room_message_count_updated') {
+            // Atualiza contador de mensagens da sala
+            const room = roomsStore.rooms.find(r => r.id === data.room_id)
+            if (room) {
+              room.messages_count = data.messages_count
+            }
           }
         },
-
-        // Método chamado quando a conexão é estabelecida
         connected() {
           console.log('Conectado ao ActionCable - RoomsChannel')
         },
-
-        // Método chamado quando a conexão é perdida
         disconnected() {
           console.log('Desconectado do ActionCable')
         },
-
-        // Método chamado quando há erro na conexão
         rejected() {
           console.error('Conexão ActionCable rejeitada')
         }
@@ -117,6 +168,51 @@ const connectToActionCable = () => {
     )
   } catch (error) {
     console.error('Erro ao conectar ao ActionCable:', error)
+  }
+}
+
+// Função para se inscrever em uma sala específica para receber mensagens
+const subscribeToRoom = (roomId) => {
+  // Verifica se já está inscrito
+  if (roomCableSubscriptions[roomId] || !cable) {
+    return
+  }
+
+  try {
+    // Se inscreve no channel específico da sala usando a mesma conexão
+    const subscription = cable.subscriptions.create(
+      { channel: 'RoomsChannel', room_id: roomId },
+      {
+        received(data) {
+          console.log('📨 Nova mensagem recebida na sala', roomId, ':', data)
+          
+          if (data.type === 'new_message') {
+            const message = data.message
+            
+            // Adiciona a mensagem ao store
+            messagesStore.addMessage(roomId, message)
+            
+            // Se a sala está aberta (é a atual), marca como lida
+            if (roomsStore.currentRoom?.id === roomId) {
+              messagesStore.markAsRead(roomId)
+            } else {
+              // Se não está aberta, incrementa contador de não lidas
+              messagesStore.incrementUnread(roomId)
+            }
+          }
+        },
+        connected() {
+          console.log(`✅ Conectado à sala ${roomId}`)
+        },
+        disconnected() {
+          console.log(`❌ Desconectado da sala ${roomId}`)
+        }
+      }
+    )
+    
+    roomCableSubscriptions[roomId] = subscription
+  } catch (error) {
+    console.error(`Erro ao conectar à sala ${roomId}:`, error)
   }
 }
 
@@ -129,8 +225,6 @@ const handleCreateRoom = async () => {
   creatingRoom.value = true
 
   try {
-    // Cria a sala no backend
-    // O ActionCable vai notificar todos os usuários (incluindo este) sobre a nova sala
     await roomsStore.createRoom(newRoomTitle.value)
     newRoomTitle.value = ''
     showCreateDialog.value = false
@@ -162,15 +256,48 @@ const handleDeleteRoom = async (roomId, event) => {
   if (confirm('Tem certeza que deseja EXCLUIR PERMANENTEMENTE esta sala? Esta ação não pode ser desfeita e todas as mensagens serão perdidas.')) {
     try {
       await roomsStore.deleteRoom(roomId)
+      // Desconecta do ActionCable da sala
+      if (roomCableSubscriptions[roomId]) {
+        roomCableSubscriptions[roomId].unsubscribe()
+        delete roomCableSubscriptions[roomId]
+      }
     } catch (error) {
       console.error('Erro ao excluir sala:', error)
     }
   }
 }
 
-// Função para entrar em uma sala
-const handleEnterRoom = (room) => {
-  alert(`Entrando na sala: ${room.title}\n\n(Esta funcionalidade será implementada no próximo passo)`)
+// Função para selecionar uma sala
+const handleSelectRoom = async (room) => {
+  roomsStore.setCurrentRoom(room)
+  
+  // Em mobile, fecha sidebar quando abre chat
+  if (mobile.value) {
+    showSidebar.value = false
+  }
+  
+  // Se inscreve na sala para receber mensagens em tempo real (se ainda não estiver)
+  subscribeToRoom(room.id)
+  
+  // Carrega as mensagens da sala selecionada
+  try {
+    await messagesStore.fetchMessages(room.id)
+    // Marca como lida
+    messagesStore.markAsRead(room.id)
+  } catch (error) {
+    console.error('Erro ao carregar mensagens:', error)
+  }
+}
+
+// Função para voltar à lista (mobile)
+const handleBackToList = () => {
+  roomsStore.clearCurrentRoom()
+  showSidebar.value = true
+}
+
+// Função para abrir/fechar sidebar (mobile)
+const toggleSidebar = () => {
+  showSidebar.value = !showSidebar.value
 }
 
 // Função para configurar o bot
@@ -181,13 +308,12 @@ const handleConfigureBot = () => {
 // Função para alternar tema
 const toggleTheme = () => {
   themeStore.toggleTheme()
-  // Usa theme.change() que é a API recomendada
   if (theme && typeof theme.change === 'function') {
     theme.change(themeStore.currentTheme)
   }
 }
 
-// Formata a data de forma mais amigável (estilo WhatsApp)
+// Formata a data
 const formatDate = (dateString) => {
   const date = new Date(dateString)
   const now = new Date()
@@ -223,12 +349,39 @@ const activeRooms = computed(() => {
     ? roomsStore.openRooms 
     : roomsStore.closedRooms
 })
+
+// Computed para verificar se há uma sala selecionada
+const hasSelectedRoom = computed(() => {
+  return !!roomsStore.currentRoom
+})
 </script>
 
 <template>
-  <div>
-    <!-- Barra superior (App Bar) estilo WhatsApp -->
+  <div class="rooms-layout">
+    <!-- Barra superior -->
     <v-app-bar color="primary" prominent>
+      <!-- Botão menu (mobile) - para abrir sidebar -->
+      <v-btn
+        v-if="mobile && !hasSelectedRoom"
+        icon
+        variant="text"
+        @click="toggleSidebar"
+        class="mr-2"
+      >
+        <v-icon>mdi-menu</v-icon>
+      </v-btn>
+
+      <!-- Botão voltar (mobile) - quando chat está aberto -->
+      <v-btn
+        v-if="mobile && hasSelectedRoom"
+        icon
+        variant="text"
+        @click="handleBackToList"
+        class="mr-2"
+      >
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
+
       <v-app-bar-title>
         <v-icon start>mdi-chat-processing</v-icon>
         Chat de Atendimento
@@ -248,6 +401,7 @@ const activeRooms = computed(() => {
 
       <!-- Botão para configurar o bot -->
       <v-btn
+        v-if="!mobile"
         color="secondary"
         variant="outlined"
         prepend-icon="mdi-robot"
@@ -271,141 +425,188 @@ const activeRooms = computed(() => {
       ></v-btn>
     </v-app-bar>
 
-    <!-- Conteúdo principal -->
+    <!-- Layout principal: duas colunas -->
     <v-main>
-      <v-container fluid class="pa-0">
-        <!-- Tabs para alternar entre salas abertas e concluídas -->
-        <v-tabs v-model="activeTab" color="primary" class="rooms-tabs">
-          <v-tab value="open">
-            <v-icon start>mdi-chat</v-icon>
-            Ativas ({{ roomsStore.openRooms.length }})
-          </v-tab>
-          <v-tab value="closed">
-            <v-icon start>mdi-archive</v-icon>
-            Concluídas ({{ roomsStore.closedRooms.length }})
-          </v-tab>
-        </v-tabs>
-
-        <!-- Botão flutuante para criar nova sala (usando v-btn ao invés de v-fab) -->
-        <v-btn
-          class="fab-button"
-          color="primary"
-          icon="mdi-plus"
-          size="large"
-          @click="showCreateDialog = true"
-        ></v-btn>
-
-        <!-- Mensagem de erro -->
-        <v-alert
-          v-if="roomsStore.error"
-          type="error"
-          variant="tonal"
-          closable
-          class="ma-4"
-          @click:close="roomsStore.error = null"
+      <div class="rooms-container">
+        <!-- Sidebar esquerda: Lista de salas -->
+        <v-navigation-drawer
+          v-model="showSidebar"
+          :temporary="mobile"
+          :permanent="!mobile"
+          width="380"
+          class="rooms-sidebar"
         >
-          {{ roomsStore.error }}
-        </v-alert>
+          <!-- Cabeçalho da sidebar com tabs melhoradas -->
+          <v-toolbar color="surface" density="compact" class="sidebar-header">
+            <v-tabs 
+              v-model="activeTab" 
+              color="primary" 
+              class="rooms-tabs"
+              slider-color="primary"
+            >
+              <v-tab value="open" class="tab-item">
+                <v-icon start size="small">mdi-chat</v-icon>
+                <span class="tab-label">Ativas</span>
+                <v-chip 
+                  v-if="roomsStore.openRooms.length > 0"
+                  size="x-small"
+                  color="primary"
+                  class="ml-2"
+                >
+                  {{ roomsStore.openRooms.length }}
+                </v-chip>
+              </v-tab>
+              <v-tab value="closed" class="tab-item">
+                <v-icon start size="small">mdi-archive</v-icon>
+                <span class="tab-label">Concluídas</span>
+                <v-chip 
+                  v-if="roomsStore.closedRooms.length > 0"
+                  size="x-small"
+                  color="secondary"
+                  class="ml-2"
+                >
+                  {{ roomsStore.closedRooms.length }}
+                </v-chip>
+              </v-tab>
+            </v-tabs>
+            <v-spacer></v-spacer>
+            <v-btn
+              icon="mdi-plus"
+              size="small"
+              variant="text"
+              @click="showCreateDialog = true"
+              class="mr-2"
+            ></v-btn>
+          </v-toolbar>
 
-        <!-- Loading -->
-        <div v-if="roomsStore.loading && roomsStore.rooms.length === 0" class="text-center py-12">
-          <v-progress-circular
-            indeterminate
-            color="primary"
-            size="64"
-          ></v-progress-circular>
-          <p class="mt-4 text-body-1">Carregando salas...</p>
-        </div>
+          <!-- Lista de salas -->
+          <v-list class="rooms-list" density="comfortable">
+            <template v-if="activeRooms.length > 0">
+              <v-list-item
+                v-for="room in activeRooms"
+                :key="room.id"
+                :value="room.id"
+                class="room-item"
+                :class="{
+                  'room-closed': room.status === 'closed',
+                  'room-selected': roomsStore.currentRoom?.id === room.id
+                }"
+                @click="handleSelectRoom(room)"
+              >
+                <template v-slot:prepend>
+                  <v-avatar 
+                    color="primary" 
+                    size="48"
+                    class="mr-3"
+                  >
+                    <v-icon>mdi-chat</v-icon>
+                  </v-avatar>
+                </template>
 
-        <!-- Lista de salas estilo WhatsApp -->
-        <v-list v-else-if="activeRooms.length > 0" class="rooms-list">
-          <v-list-item
-            v-for="room in activeRooms"
-            :key="room.id"
-            class="room-item"
-            :class="{ 'room-closed': room.status === 'closed' }"
-            @click="handleEnterRoom(room)"
-          >
-            <!-- Avatar da sala -->
-            <template v-slot:prepend>
-              <v-avatar color="primary" size="56">
-                <v-icon size="32">mdi-chat</v-icon>
-              </v-avatar>
-            </template>
+                <v-list-item-title class="room-title">
+                  {{ room.title }}
+                </v-list-item-title>
+                <v-list-item-subtitle class="room-subtitle">
+                  <span v-if="room.messages_count > 0">
+                    {{ room.messages_count }} mensagem{{ room.messages_count !== 1 ? 's' : '' }}
+                  </span>
+                  <span v-else>Nenhuma mensagem ainda</span>
+                </v-list-item-subtitle>
 
-            <!-- Conteúdo principal -->
-            <v-list-item-title class="room-title">
-              {{ room.title }}
-            </v-list-item-title>
-            <v-list-item-subtitle class="room-subtitle">
-              <span v-if="room.messages_count > 0">
-                {{ room.messages_count }} mensagem{{ room.messages_count !== 1 ? 's' : '' }}
-              </span>
-              <span v-else>Nenhuma mensagem ainda</span>
-            </v-list-item-subtitle>
-
-            <!-- Informações à direita -->
-            <template v-slot:append>
-              <div class="room-meta">
-                <div class="room-time">{{ formatTime(room.created_at) }}</div>
-                <div class="room-date">{{ formatDate(room.created_at) }}</div>
-                
-                <!-- Menu de ações -->
-                <v-menu>
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      v-bind="props"
-                      @click.stop
+                <template v-slot:append>
+                  <div class="room-meta">
+                    <div class="room-time">{{ formatTime(room.created_at) }}</div>
+                    <!-- Badge de mensagens não lidas -->
+                    <v-badge
+                      v-if="messagesStore.getUnreadCount(room.id) > 0"
+                      :content="messagesStore.getUnreadCount(room.id)"
+                      color="error"
+                      overlap
+                      class="mr-2"
                     >
-                      <v-icon>mdi-dots-vertical</v-icon>
-                    </v-btn>
-                  </template>
-                  <v-list>
-                    <v-list-item
-                      v-if="room.status === 'open'"
-                      prepend-icon="mdi-check-circle"
-                      title="Marcar como concluída"
-                      @click="handleCloseRoom(room.id, $event)"
-                    ></v-list-item>
-                    <v-list-item
-                      prepend-icon="mdi-delete"
-                      title="Excluir permanentemente"
-                      @click="handleDeleteRoom(room.id, $event)"
-                    ></v-list-item>
-                  </v-list>
-                </v-menu>
-              </div>
+                      <v-icon size="small" color="primary">mdi-circle</v-icon>
+                    </v-badge>
+                    <v-menu location="bottom end">
+                      <template v-slot:activator="{ props: menuProps }">
+                        <v-btn
+                          icon
+                          variant="text"
+                          size="x-small"
+                          v-bind="menuProps"
+                          @click.stop
+                          class="menu-button"
+                        >
+                          <v-icon size="small">mdi-dots-vertical</v-icon>
+                        </v-btn>
+                      </template>
+                      <v-list density="compact">
+                        <v-list-item
+                          v-if="room.status === 'open'"
+                          prepend-icon="mdi-check-circle"
+                          title="Marcar como concluída"
+                          @click="handleCloseRoom(room.id, $event)"
+                        ></v-list-item>
+                        <v-list-item
+                          prepend-icon="mdi-delete"
+                          title="Excluir permanentemente"
+                          @click="handleDeleteRoom(room.id, $event)"
+                        ></v-list-item>
+                      </v-list>
+                    </v-menu>
+                  </div>
+                </template>
+              </v-list-item>
             </template>
-          </v-list-item>
-        </v-list>
 
-        <!-- Mensagem quando não há salas -->
-        <v-card v-else class="text-center py-12 ma-4">
-          <v-icon size="64" color="grey-lighten-1" class="mb-4">
-            mdi-chat-outline
-          </v-icon>
-          <h3 class="text-h6 mb-2">Nenhuma sala {{ activeTab === 'open' ? 'ativa' : 'concluída' }}</h3>
-          <p class="text-body-2 text-medium-emphasis mb-4">
-            <span v-if="activeTab === 'open'">
-              Crie uma nova sala para começar a conversar
-            </span>
-            <span v-else>
-              Nenhuma sala foi concluída ainda
-            </span>
-          </p>
-          <v-btn
-            v-if="activeTab === 'open'"
-            color="primary"
-            prepend-icon="mdi-plus"
-            @click="showCreateDialog = true"
-          >
-            Criar Primeira Sala
-          </v-btn>
-        </v-card>
-      </v-container>
+            <!-- Mensagem quando não há salas -->
+            <div v-else class="text-center py-12 pa-4 empty-state">
+              <v-icon size="64" color="grey-lighten-1" class="mb-4">
+                mdi-chat-outline
+              </v-icon>
+              <p class="text-body-2 text-medium-emphasis">
+                <span v-if="activeTab === 'open'">
+                  Nenhuma sala ativa. Crie uma nova!
+                </span>
+                <span v-else>
+                  Nenhuma sala concluída ainda.
+                </span>
+              </p>
+            </div>
+          </v-list>
+        </v-navigation-drawer>
+
+        <!-- Área principal: Chat ou tela vazia -->
+        <div class="chat-area">
+          <ChatView
+            v-if="hasSelectedRoom"
+            :room="roomsStore.currentRoom"
+          />
+          <div v-else class="empty-chat">
+            <v-icon size="120" color="grey-lighten-1" class="mb-4">
+              mdi-chat-outline
+            </v-icon>
+            <h2 class="text-h5 mb-2">Selecione uma sala</h2>
+            <p class="text-body-1 text-medium-emphasis">
+              <span v-if="mobile">
+                Toque no menu acima para ver as salas disponíveis
+              </span>
+              <span v-else>
+                Escolha uma sala na lista ao lado para começar a conversar
+              </span>
+            </p>
+            <!-- Botão para abrir sidebar em mobile -->
+            <v-btn
+              v-if="mobile"
+              color="primary"
+              prepend-icon="mdi-menu"
+              @click="toggleSidebar"
+              class="mt-4"
+            >
+              Ver Salas
+            </v-btn>
+          </div>
+        </div>
+      </div>
     </v-main>
 
     <!-- Diálogo para criar nova sala -->
@@ -454,38 +655,93 @@ const activeRooms = computed(() => {
 </template>
 
 <style scoped>
-.rooms-tabs {
+.rooms-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.rooms-container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.rooms-sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  height: 100%;
+}
+
+.sidebar-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.rooms-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.rooms-tabs :deep(.v-tab) {
+  min-width: 120px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.rooms-tabs :deep(.v-tab__content) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-label {
+  white-space: nowrap;
 }
 
 .rooms-list {
   padding: 0;
-  background: transparent;
+  overflow-y: auto;
+  height: calc(100% - 64px);
 }
 
 .room-item {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: background-color 0.2s;
+  padding: 12px 16px !important;
 }
 
 .room-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
+.room-item.room-selected {
+  background-color: rgba(var(--v-theme-primary), 0.15);
+  border-left: 3px solid rgb(var(--v-theme-primary));
+}
+
 .room-item.room-closed {
   opacity: 0.6;
-  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .room-title {
   font-weight: 500;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.4;
 }
 
 .room-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   margin-top: 4px;
+  line-height: 1.3;
 }
 
 .room-meta {
@@ -493,29 +749,87 @@ const activeRooms = computed(() => {
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+  min-width: 40px;
 }
 
 .room-time {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.room-date {
   font-size: 11px;
   opacity: 0.7;
+  white-space: nowrap;
 }
 
-.fab-button {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000;
+.menu-button {
+  opacity: 0.6;
 }
 
-/* Responsividade */
-@media (max-width: 600px) {
-  .room-meta {
-    min-width: 80px;
+.menu-button:hover {
+  opacity: 1;
+}
+
+.empty-state {
+  padding: 32px 16px;
+}
+
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
+.empty-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 32px;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 960px) {
+  .rooms-container {
+    position: relative;
   }
+
+  .chat-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .rooms-sidebar {
+    z-index: 2;
+  }
+}
+
+/* Scrollbar personalizada */
+.rooms-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rooms-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rooms-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.rooms-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Esconde os botões de navegação do v-slide-group */
+.rooms-tabs :deep(.v-slide-group__next),
+.rooms-tabs :deep(.v-slide-group__prev) {
+  display: none !important;
 }
 </style>

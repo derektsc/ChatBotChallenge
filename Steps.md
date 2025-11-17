@@ -86,12 +86,48 @@ SELECT * FROM rooms;---
 
 
 ## 3. Visualização e envio de mensagens
-    Backend:
-        Endpoint GET /rooms/:id/messages (histórico)
-        Endpoint POST /rooms/:id/messages (enviar mensagem)
-    Frontend:
-        Tela de chat (histórico + input)
-        Envio de mensagens
+    - Backend:
+        - Criei o MessagesController em backend/app/controllers/messages_controller.rb com os métodos:
+            - index: lista todas as mensagens de uma sala (GET /rooms/:room_id/messages), ordenadas por data de criação (mais antigas primeiro), inclui dados do usuário (user) via includes(:user) para evitar N+1 queries
+            - create: cria nova mensagem (POST /rooms/:room_id/messages), valida conteúdo não vazio, associa ao usuário atual (current_user) e à sala, faz broadcast via ActionCable para todos os clientes conectados à sala usando stream "room_#{room.id}", também faz broadcast do contador de mensagens atualizado no stream "rooms"
+            - format_message: método helper privado para formatar dados da mensagem (id, content, user {id, name}, room_id, created_at, updated_at)
+        - Adicionei rotas aninhadas em config/routes.rb: resources :messages, only: [:index, :create] dentro de resources :rooms
+        - Criei o RoomsChannel em backend/app/channels/rooms_channel.rb (movido de application_cable para o namespace correto) com:
+            - subscribed: permite inscrição em sala específica (stream_from "room_#{room.id}") ou no channel geral (stream_from "rooms")
+            - unsubscribed: limpeza ao desinscrever
+        - Atualizei ApplicationCable::Connection em backend/app/channels/application_cable/connection.rb com:
+            - Autenticação JWT via token nos query params ou header Authorization
+            - identified_by :current_user para identificar conexões por usuário
+            - Método decode_token usando a mesma secret_key do JWT
+    - Frontend:
+        - Criei o arquivo frontend/src/stores/messages.js com store Pinia completo:
+            - State: messages (objeto com roomId como chave), loading, error, sending (por sala), unreadCounts (contador de não lidas por sala), lastReadMessage (última mensagem lida por sala)
+            - Actions: fetchMessages (busca mensagens e marca como lidas), sendMessage (envia mensagem e marca como lida), addMessage (adiciona mensagem recebida via ActionCable), markAsRead (marca mensagens como lidas), incrementUnread (incrementa contador de não lidas), clearMessages (limpa mensagens de uma sala)
+            - Getters: getMessagesByRoom (retorna mensagens de uma sala), isSending (verifica se está enviando), getUnreadCount (retorna contador de não lidas)
+        - Criei o componente frontend/src/components/ChatView.vue com:
+            - Cabeçalho do chat mostrando título da sala e status (Ativa/Concluída)
+            - Área de mensagens com scroll automático para o final
+            - Loading state durante carregamento
+            - Mensagem vazia quando não há mensagens
+            - Input de mensagem com botão de envio, validação de conteúdo vazio, desabilita botão durante envio
+            - Formatação de horário das mensagens (HH:mm)
+            - Identificação de mensagens próprias vs de outros usuários
+            - Exibição do nome do autor em mensagens de outros usuários
+            - Responsivo para mobile e desktop
+        - Atualizei frontend/src/views/RoomsView.vue com:
+            - Layout de duas colunas: sidebar esquerda (lista de salas) + área de chat à direita
+            - Responsividade mobile: sidebar temporária que fecha ao abrir chat, botão de menu para abrir sidebar, botão voltar quando chat está aberto
+            - Integração completa com ActionCable:
+                - Conexão única reutilizada (cable) com token JWT nos query params
+                - Subscription no channel geral "RoomsChannel" para eventos de salas (room_created, room_closed, room_deleted, room_message_count_updated)
+                - Subscriptions individuais por sala para receber mensagens em tempo real
+                - Inscrição automática em todas as salas ao carregar
+                - Inscrição automática em novas salas criadas
+            - Badge de notificação de mensagens não lidas em cada sala (v-badge com contador)
+            - Atualização automática de contador de mensagens via ActionCable
+            - Seleção de sala carrega mensagens e marca como lidas
+            - Tela vazia quando nenhuma sala está selecionada com botão para abrir sidebar em mobile
+            - Tema dark/light com paletas de cores atualizadas
 
 4. ActionCable (WebSocket)
 Backend:
