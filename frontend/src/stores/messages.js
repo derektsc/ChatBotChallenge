@@ -54,15 +54,15 @@ export const useMessagesStore = defineStore('messages', {
           content: content.trim()
         })
         
-        // Adiciona a nova mensagem na lista de mensagens da sala
-        if (!this.messages[roomId]) {
-          this.messages[roomId] = []
+        // NÃO adiciona a mensagem aqui - o ActionCable vai trazer ela de volta
+        // Isso evita duplicação, pois o broadcast do ActionCable vai adicionar a mensagem
+        // Apenas marca como lida se necessário
+        if (response.data) {
+          // Marca como lida já que o usuário enviou
+          // Mas não adiciona a mensagem - deixa o ActionCable fazer isso
+          this.lastReadMessage[roomId] = response.data.id
+          this.unreadCounts[roomId] = 0
         }
-        this.messages[roomId].push(response.data)
-        
-        // Marca como lida já que o usuário enviou
-        this.lastReadMessage[roomId] = response.data.id
-        this.unreadCounts[roomId] = 0
         
         return response.data
       } catch (error) {
@@ -81,12 +81,33 @@ export const useMessagesStore = defineStore('messages', {
       }
       
       // Verifica se a mensagem já não existe (evita duplicatas)
-      const exists = this.messages[roomId].some(m => m.id === message.id)
+      // Compara por ID e também por conteúdo + timestamp para garantir
+      const exists = this.messages[roomId].some(m => {
+        // Verifica por ID (mais confiável)
+        if (m.id && message.id && m.id === message.id) {
+          return true
+        }
+        // Verifica por conteúdo + timestamp como fallback (caso IDs não estejam disponíveis)
+        if (m.content === message.content && 
+            m.created_at === message.created_at &&
+            m.user?.id === message.user?.id) {
+          return true
+        }
+        return false
+      })
+      
       if (!exists) {
+        // Adiciona a mensagem no final do array (mantém ordem cronológica)
         this.messages[roomId].push(message)
         
-        // Se a sala não está aberta ou a mensagem não é do usuário atual, incrementa contador
-        // Isso será verificado no componente que usa o store
+        // Ordena por created_at para garantir ordem correta
+        this.messages[roomId].sort((a, b) => {
+          const dateA = new Date(a.created_at)
+          const dateB = new Date(b.created_at)
+          return dateA - dateB
+        })
+      } else {
+        console.log('⚠️ Mensagem duplicada ignorada:', message.id || message.content)
       }
     },
 

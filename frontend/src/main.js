@@ -21,64 +21,58 @@ import './style.css'
 const vuetify = createVuetify({
   components,
   directives,
-  icons: {
-    defaultSet: 'mdi',
-    aliases,
-    sets: {
-      mdi,
-    },
-  },
+  icons: { defaultSet: 'mdi', aliases, sets: { mdi } },
   theme: {
     defaultTheme: 'dark',
     themes: {
       dark: {
         dark: true,
         colors: {
-          // Paleta principal - tons de azul/roxo modernos
-          primary: '#667eea', // Azul-roxo vibrante
-          secondary: '#764ba2', // Roxo profundo
-          accent: '#f093fb',  // Rosa suave
-          
-          // Cores de feedback
-          error: '#ef4444', // Vermelho
-          info: '#3b82f6', // Azul
-          success: '#10b981', // Verde
-          warning: '#f59e0b', // Laranja
-          
-          // Cores de fundo - gradiente escuro elegante
-          background: '#0a0e27', // Azul muito escuro (quase preto)
-          surface: '#1a1f3a', // Azul escuro
-          
-          // Cores adicionais para melhor contraste
-          'surface-variant': '#252b4a',
-          'on-surface': '#e2e8f0',
-          'on-primary': '#ffffff',
+          primary: '#E38E1C', // Terracota dourado suave
+          secondary: '#C77D32', // Terracota mais profundo
+          accent: '#F2C681', // Areia quente
+
+          // Feedback (neutros, não vibrantes para não cansar)
+          error: '#F87171',
+          info: '#60A5FA',
+          success: '#34D399',
+          warning: '#FBBF24',
+          background: '#121212', // Dark
+          surface: '#1E1E1E', // Cartões/macrosurfaces
+          'surface-variant': '#2A2A2A', // Bordas e seções
+
+          // Texto e contraste
+          'on-surface': '#F5F5F5', // Texto primário suave
+          'on-primary': '#1A1A1A', // Texto sobre terracota
+
+          // Chat
+          'chat-user': '#E0A458',
+          'chat-agent': '#1E1E1E'
         },
       },
       light: {
         dark: false,
         colors: {
-          // Paleta principal - tons suaves e elegantes
-          primary: '#667eea', // Azul-roxo (mesmo do dark para consistência)
-          secondary: '#764ba2', // Roxo profundo
-          accent: '#f093fb', // Rosa suave
-          
-          // Cores de feedback
-          error: '#ef4444',
-          info: '#3b82f6',
-          success: '#10b981',
-          warning: '#f59e0b',
-          
-          // Cores de fundo - branco suave e elegante
-          background: '#f8fafc', // Cinza muito claro (quase branco)
-          surface: '#ffffff', // Branco puro
-          
-          // Cores adicionais para melhor contraste
-          'surface-variant': '#f1f5f9',
-          'on-surface': '#1e293b',
-          'on-primary': '#ffffff',
+          primary: '#E38E1C',
+          secondary: '#F59E0B',
+          accent: '#FBBF24',
+
+          error: '#EF4444',
+          info: '#3B82F6',
+          success: '#22C55E',
+          warning: '#F59E0B',
+
+          background: '#FFF7ED',
+          surface: '#FFFFFF',
+          'surface-variant': '#FEF3C7',
+
+          'on-surface': '#3B2F19',
+          'on-primary': '#FFFFFF',
+
+          'chat-user': '#E38E1C',
+          'chat-agent': '#FFFFFF'
         },
-      },
+      }
     },
   },
 })

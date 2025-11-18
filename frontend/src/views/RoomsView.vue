@@ -390,24 +390,27 @@ const hasSelectedRoom = computed(() => {
 
       <!-- Botão para alternar tema -->
       <v-btn
-        icon
-        variant="text"
-        @click="toggleTheme"
-        class="mr-2"
-      >
-        <v-icon>{{ themeStore.isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+          v-bind="props"
+          :color="themeStore.isDark ? 'warning' : 'primary'"
+          variant="flat"
+          @click="toggleTheme"
+          class="mr-2 theme-toggle-btn"
+          >
+            <v-icon start>{{ themeStore.isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+            <span class="d-none d-sm-inline">{{ themeStore.isDark ? 'Claro' : 'Escuro' }}</span>
       </v-btn>
 
       <!-- Botão para configurar o bot -->
       <v-btn
-        v-if="!mobile"
-        color="secondary"
-        variant="outlined"
+        color="accent"
+        variant="flat"
         prepend-icon="mdi-robot"
         @click="handleConfigureBot"
-        class="mr-2"
+        class="mr-2 configure-bot-btn"
+        :class="{ 'd-none': mobile }"
       >
-        Configurar @Bot
+        <span class="d-none d-md-inline">Configurar @Bot</span>
+        <span class="d-md-none">@Bot</span>
       </v-btn>
 
       <!-- Informações do usuário logado -->
@@ -420,12 +423,13 @@ const hasSelectedRoom = computed(() => {
       <v-btn
         icon="mdi-logout"
         variant="text"
+        style="background-color: red !important;"
         @click="authStore.logout(); router.push('/login')"
       ></v-btn>
     </v-app-bar>
 
     <!-- Layout principal: duas colunas -->
-    <v-main>
+    <v-main class="main-content">
       <div class="rooms-container">
         <!-- Sidebar esquerda: Lista de salas -->
         <v-navigation-drawer
@@ -663,7 +667,9 @@ const hasSelectedRoom = computed(() => {
 .rooms-container {
   display: flex;
   height: 100%;
-  overflow: hidden;
+  max-height: 100vh; /* Não ultrapassa a altura da viewport */
+  overflow: hidden; /* Previne scroll no container principal */
+  position: relative;
 }
 
 .rooms-sidebar {
@@ -677,7 +683,7 @@ const hasSelectedRoom = computed(() => {
 
 .rooms-tabs {
   flex: 1;
-  min-width: 0;
+  min-width: 80%;
 }
 
 .rooms-tabs :deep(.v-tab) {
@@ -699,6 +705,12 @@ const hasSelectedRoom = computed(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.main-content {
+  height: 100%;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .tab-label {
@@ -751,6 +763,38 @@ const hasSelectedRoom = computed(() => {
   min-width: 40px;
 }
 
+.theme-toggle-btn {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  min-width: auto;
+  padding: 8px 16px;
+}
+
+.configure-bot-btn {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.configure-bot-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Em mobile, mostra apenas o ícone do bot */
+@media (max-width: 600px) {
+  .theme-toggle-btn {
+    padding: 8px;
+  }
+  
+  .theme-toggle-btn span {
+    display: none !important;
+  }
+}
+
 .room-time {
   font-size: 11px;
   opacity: 0.7;
@@ -774,8 +818,11 @@ const hasSelectedRoom = computed(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  max-height: 100%;
+  min-height: 0; /* Importante para flexbox */
+  overflow: hidden; /* Previne scroll no container pai */
   width: 100%;
+  position: relative; /* Para posicionamento absoluto em mobile */
 }
 
 .empty-chat {

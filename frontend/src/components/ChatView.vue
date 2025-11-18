@@ -213,30 +213,40 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  max-height: 100%;
   background: rgb(var(--v-theme-background));
+  overflow: hidden;
 }
 
 .chat-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
+  min-height: 48px; 
 }
 
 .messages-container {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 auto; 
+  min-height: 0; 
+  max-height: 100%; 
+  overflow-y: auto; 
+  overflow-x: hidden;
   padding: 16px;
   background: rgb(var(--v-theme-background));
+  position: relative;
 }
 
 .messages-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: min-content;
 }
 
 .message-item {
   display: flex;
   width: 100%;
+  flex-shrink: 0; 
 }
 
 .message-item.message-mine {
@@ -248,6 +258,8 @@ watch(
   padding: 12px 16px;
   border-radius: 18px;
   position: relative;
+  word-wrap: break-word; 
+  overflow-wrap: break-word;
 }
 
 .message-item:not(.message-mine) .message-bubble {
@@ -270,7 +282,9 @@ watch(
 
 .message-content {
   word-wrap: break-word;
+  overflow-wrap: break-word;
   line-height: 1.4;
+  white-space: pre-wrap;
 }
 
 .message-time {
@@ -283,6 +297,7 @@ watch(
 .message-input-container {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
+  min-height: 64px; 
 }
 
 .message-input {
@@ -305,5 +320,12 @@ watch(
 
 .messages-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 960px) {
+  .chat-view {
+    height: 100vh;
+    max-height: 100vh;
+  }
 }
 </style>
