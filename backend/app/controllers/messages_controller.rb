@@ -71,6 +71,13 @@ class MessagesController < ApplicationController
             }
         )
 
+        # Detecta se a mensagem contém "@bot" e gera resposta automática
+        if content.downcase.include?('@bot')
+            # Processa a resposta do bot em background (não bloqueia a resposta)
+            # Isso evita que o usuário tenha que esperar a resposta da OpenAI
+            ProcessBotResponseJob.perform_later(room.id, content, current_user.id)
+        end
+
         # Retorna a mensagem criada
         render json: message_data, status: :created
         else

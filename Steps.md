@@ -129,21 +129,66 @@ SELECT * FROM rooms;---
             - Tela vazia quando nenhuma sala está selecionada com botão para abrir sidebar em mobile
             - Tema dark/light com paletas de cores atualizadas
 
-4. ActionCable (WebSocket)
-Backend:
-    Channel para cada sala
-    Broadcast de novas mensagens
-Frontend:
-    Conectar ao ActionCable
-    Receber mensagens em tempo real
-    Notificações visuais
+## 4. Configuração do Bot (API Config)
+    - Backend:
+        - Atualizei o modelo ApiConfig em backend/app/models/api_config.rb:
+            - Removido belongs_to :user (API key é global para todos os usuários)
+            - Implementado padrão singleton com método self.current que retorna primeira configuração ou cria nova
+            - Método has_api_key? para verificar se há API key configurada
+            - API key armazenada em texto plano (sem criptografia) para facilitar configuração em projeto de teste
+        - Criei migrations para ajustar estrutura da tabela:
+            - Remove user_id de api_configs (API key é única para todo o sistema)
+            - Torna api_key e llm_model nullable (text) para permitir configuração parcial
+            - Remove coluna encrypted_api_key (não utilizada)
+        - Criei o ApiConfigController em backend/app/controllers/api_config_controller.rb com os métodos:
+            - show: retorna configuração atual (GET /api_config), não expõe API key completa, apenas indica se existe
+            - create: salva ou atualiza API key e modelo (POST /api_config), valida API key fazendo requisição de teste à OpenAI
+            - update: atualiza apenas o modelo LLM (PATCH /api_config), sem validar API key novamente
+            - models: lista modelos disponíveis da OpenAI (GET /api_config/models), filtra apenas modelos GPT de chat (gpt-*)
+        - Criei o OpenaiService em backend/app/services/openai_service.rb com métodos:
+            - initialize: recebe API key como parâmetro
+            - list_models: faz requisição GET /v1/models e retorna lista de IDs de modelos
+            - generate_response: gera resposta usando OpenAI (suporta chat/completions e completions)
+            - validate_api_key: valida API key fazendo requisição de teste
+            - is_chat_model?: detecta se modelo é de chat (gpt-*, o1-*, claude-*, etc) ou completion (davinci-002, etc)
+            - generate_chat_completion: usa endpoint /v1/chat/completions para modelos de chat
+            - generate_completion: usa endpoint /v1/completions para modelos antigos
+        - Adicionei gem "faraday" no Gemfile para fazer requisições HTTP à API OpenAI
+        - Configurei ActiveJob em backend/config/application.rb com queue_adapter :async para processar respostas do bot em background
+    - Frontend:
+        - Criei o arquivo frontend/src/stores/apiConfig.js com store Pinia que gerencia configuração da API:
+            - State: config (configuração atual), models (lista de modelos), loading, saving, error, hasApiKey (computed)
+            - Actions: fetchConfig (busca configuração atual), saveConfig (salva API key e modelo), updateModel (atualiza apenas modelo), fetchModels (lista modelos da OpenAI)
+            - Getters: currentModel (retorna modelo atual), hasApiKey (verifica se há API key)
+        - Criei o arquivo frontend/src/views/ConfigBotView.vue com:
+            - Tela completa de configuração do bot
+            - Seção de API Key: campo para inserir/editar API key com toggle para mostrar/ocultar, validação ao salvar, status de sucesso quando configurada
+            - Seção de Modelo LLM: select com modelos disponíveis, carregamento automático após salvar API key, alerta quando modelo não é de chat
+            - Avisos informativos sobre armazenamento da API key em texto plano (não é boa prática para produção, mas facilita configuração em projeto de teste)
+            - Card "Como funciona?" com instruções de uso
+            - Botão "Salvar Modelo" para persistir seleção
+            - Navegação de volta para /rooms
+        - Adicionei rota /config-bot em frontend/src/router/index.js com guard de autenticação
+        - Adicionei botão "Configurar @Bot" na barra superior de RoomsView.vue que navega para /config-bot
 
-5. Configuração do Bot (OpenAI)
-Backend:
-    Endpoint GET /api_config/models (listar modelos OpenAI)
-    Endpoint POST /api_config (salvar API key e modelo)
-    Service para detectar "@bot" e chamar OpenAI
-Frontend:
-    Tela de configuração
-    Input de API key (criptografada)
-    Select de modelos
+## 5. Integração com OpenAI e Bot Automático
+    - Backend:
+        - Criei o ProcessBotResponseJob em backend/app/jobs/process_bot_response_job.rb:
+            - ActiveJob que processa respostas do bot em background
+            - Detecta quando mensagem contém "@bot" (case-insensitive)
+            - Busca configuração atual da API (ApiConfig.current)
+            - Valida se há API key e modelo configurados
+            - Chama OpenaiService para gerar resposta baseada no tipo de modelo (chat ou completion)
+            - Cria mensagem do bot associada ao usuário "Bot" (criado automaticamente se não existir)
+            - Faz broadcast da mensagem do bot via ActionCable para todos os clientes da sala
+            - Atualiza contador de mensagens via broadcast
+            - Tratamento de erros com logging sem quebrar o fluxo
+        - Atualizei MessagesController#create para disparar ProcessBotResponseJob quando detecta "@bot" na mensagem:
+            - Verifica se conteúdo da mensagem contém "@bot" (case-insensitive)
+            - Chama ProcessBotResponseJob.perform_later de forma assíncrona
+        - OpenaiService suporta dois tipos de modelos:
+            - Modelos de chat (gpt-*, o1-*, claude-*): usa endpoint /v1/chat/completions com formato messages array
+            - Modelos de completion (davinci-002, etc): usa endpoint /v1/completions com formato prompt string
+            - Detecção automática do tipo de modelo baseada no nome
+        - Configuração de timeout de 30 segundos para requisições à OpenAI
+        - Tratamento de erros da API OpenAI com mensagens descritivas

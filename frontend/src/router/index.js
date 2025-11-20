@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 // Import das views
 import LoginView from '../views/LoginView.vue'
 import RoomsView from '../views/RoomsView.vue'
+import ConfigBotView from '../views/ConfigBotView.vue' 
 
 const routes = [
     {
@@ -29,32 +30,38 @@ const routes = [
       meta: { requiresAuth: true }
     },
     {
+      path: '/config-bot', // NOVA ROTA
+      name: 'ConfigBot',
+      component: ConfigBotView,
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/',
       redirect: '/login'
     }
   ]
   
-  const router = createRouter({
-    history: createWebHistory(),
-    routes
-  })
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
   
-  // Guard global: verifica autenticação antes de entrar em rotas protegidas
-  router.beforeEach((to, from, next) => {
-    const authStore = useAuthStore()
+// Guard global: verifica autenticação antes de entrar em rotas protegidas
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
     
-    // Carrega dados do localStorage se ainda não foram carregados
-    if (!authStore.user) {
-      authStore.loadFromStorage()
-    }
+  // Carrega dados do localStorage se ainda não foram carregados
+  if (!authStore.user) {
+    authStore.loadFromStorage()
+  }
   
-    // Se a rota requer autenticação e o usuário não está autenticado
-    if (to.meta.requiresAuth && !authStore.isAuthenticated()) {
-      // Redireciona para login
-      next('/login')
-    } else {
-      next()
-    }
-  })
+  // Se a rota requer autenticação e o usuário não está autenticado
+  if (to.meta.requiresAuth && !authStore.isAuthenticated()) {
+    // Redireciona para login
+    next('/login')
+  } else {
+    next()
+  }
+})
   
-  export default router
+export default router

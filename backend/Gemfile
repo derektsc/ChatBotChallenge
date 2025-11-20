@@ -27,6 +27,10 @@ gem "pg", "~> 1.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 
+# Gem para criptografia simétrica de atributos (API keys, senhas, etc.)
+# Esta gem criptografa/descriptografa automaticamente os dados
+gem "attr_encrypted", "~> 4.0"
+
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 # gem "jbuilder"
 

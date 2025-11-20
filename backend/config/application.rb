@@ -40,5 +40,15 @@ module App
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Configura ActiveJob para usar processamento em background
+    # Em desenvolvimento, usa processamento inline (executa imediatamente)
+    # Em produção, pode configurar para usar Sidekiq, DelayedJob, etc.
+    config.active_job.queue_adapter = :async
+
+    # Adiciona o diretório app/services ao autoload_paths
+    # Isso permite que o Rails carregue automaticamente as classes em app/services
+    config.autoload_paths << Rails.root.join('app', 'services')
+    config.eager_load_paths << Rails.root.join('app', 'services')
   end
 end

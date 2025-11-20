@@ -10,16 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_11_15_023305) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_18_150205) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
   create_table "api_configs", force: :cascade do |t|
-    t.string "api_key", null: false
-    t.string "llm_model", null: false
+    t.text "api_key"
+    t.string "llm_model"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.text "encrypted_api_key"
   end
 
   create_table "messages", force: :cascade do |t|

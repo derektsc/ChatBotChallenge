@@ -53,7 +53,7 @@ onMounted(async () => {
   try {
     await roomsStore.fetchRooms()
   } catch (error) {
-    console.error('Erro ao carregar salas:', error)
+    // console.error('Erro ao carregar salas:', error)
   }
 
   // Conecta ao ActionCable
@@ -109,7 +109,7 @@ const connectToActionCable = () => {
     const token = authStore.token
     
     if (!token) {
-      console.error('Token JWT não encontrado')
+      //console.error('Token JWT não encontrado')
       return
     }
     
@@ -122,7 +122,7 @@ const connectToActionCable = () => {
       { channel: 'RoomsChannel' },
       {
         received(data) {
-          console.log('Dados recebidos do ActionCable (Rooms):', data)
+          // Removido console.log - dados recebidos do ActionCable
           
           if (data.type === 'room_created') {
             const existingRoom = roomsStore.rooms.find(r => r.id === data.room.id)
@@ -155,18 +155,18 @@ const connectToActionCable = () => {
           }
         },
         connected() {
-          console.log('Conectado ao ActionCable - RoomsChannel')
+          // console.log('Conectado ao ActionCable - RoomsChannel')
         },
         disconnected() {
-          console.log('Desconectado do ActionCable')
+          //console.log('Desconectado do ActionCable')
         },
         rejected() {
-          console.error('Conexão ActionCable rejeitada')
+          // Removido console.error - conexão rejeitada
         }
       }
     )
   } catch (error) {
-    console.error('Erro ao conectar ao ActionCable:', error)
+    // Removido console.error - erro ao conectar
   }
 }
 
@@ -183,7 +183,7 @@ const subscribeToRoom = (roomId) => {
       { channel: 'RoomsChannel', room_id: roomId },
       {
         received(data) {
-          console.log('📨 Nova mensagem recebida na sala', roomId, ':', data)
+          // console.log('📨 Nova mensagem recebida na sala', roomId, ':', data)
           
           if (data.type === 'new_message') {
             const message = data.message
@@ -201,17 +201,17 @@ const subscribeToRoom = (roomId) => {
           }
         },
         connected() {
-          console.log(`Conectado à sala ${roomId}`)
+        //  console.log(`Conectado à sala ${roomId}`)
         },
         disconnected() {
-          console.log(`Desconectado da sala ${roomId}`)
+        //  console.log(`Desconectado da sala ${roomId}`)
         }
       }
     )
     
     roomCableSubscriptions[roomId] = subscription
   } catch (error) {
-    console.error(`Erro ao conectar à sala ${roomId}:`, error)
+    // console.error(`Erro ao conectar à sala ${roomId}:`, error)
   }
 }
 
@@ -229,7 +229,7 @@ const handleCreateRoom = async () => {
     showCreateDialog.value = false
     activeTab.value = 'open'
   } catch (error) {
-    console.error('Erro ao criar sala:', error)
+    // console.error('Erro ao criar sala:', error)
   } finally {
     creatingRoom.value = false
   }
@@ -243,7 +243,7 @@ const handleCloseRoom = async (roomId, event) => {
     try {
       await roomsStore.closeRoom(roomId)
     } catch (error) {
-      console.error('Erro ao fechar sala:', error)
+      // console.error('Erro ao fechar sala:', error)
     }
   }
 }
@@ -261,7 +261,7 @@ const handleDeleteRoom = async (roomId, event) => {
         delete roomCableSubscriptions[roomId]
       }
     } catch (error) {
-      console.error('Erro ao excluir sala:', error)
+    //  console.error('Erro ao excluir sala:', error)
     }
   }
 }
@@ -284,7 +284,7 @@ const handleSelectRoom = async (room) => {
     // Marca como lida
     messagesStore.markAsRead(room.id)
   } catch (error) {
-    console.error('Erro ao carregar mensagens:', error)
+    // console.error('Erro ao carregar mensagens:', error)
   }
 }
 
@@ -301,7 +301,7 @@ const toggleSidebar = () => {
 
 // Função para configurar o bot
 const handleConfigureBot = () => {
-  alert('Tela de configuração do bot será implementada em breve')
+  router.push('/config-bot')
 }
 
 // Função para alternar tema
@@ -390,7 +390,6 @@ const hasSelectedRoom = computed(() => {
 
       <!-- Botão para alternar tema -->
       <v-btn
-          v-bind="props"
           :color="themeStore.isDark ? 'warning' : 'primary'"
           variant="flat"
           @click="toggleTheme"
@@ -414,7 +413,7 @@ const hasSelectedRoom = computed(() => {
       </v-btn>
 
       <!-- Informações do usuário logado -->
-      <v-chip color="surface" class="mr-2">
+      <v-chip class="mr-2" style="background-color: #e7e7e7; font-weight: bold; color: #000;">
         <v-icon start size="small">mdi-account</v-icon>
         {{ authStore.user?.name }}
       </v-chip>
@@ -423,7 +422,7 @@ const hasSelectedRoom = computed(() => {
       <v-btn
         icon="mdi-logout"
         variant="text"
-        style="background-color: red !important;"
+        style="background-color: #f15252 !important;"
         @click="authStore.logout(); router.push('/login')"
       ></v-btn>
     </v-app-bar>
@@ -667,8 +666,8 @@ const hasSelectedRoom = computed(() => {
 .rooms-container {
   display: flex;
   height: 100%;
-  max-height: 100vh; /* Não ultrapassa a altura da viewport */
-  overflow: hidden; /* Previne scroll no container principal */
+  max-height: 100vh; 
+  overflow: hidden; 
   position: relative;
 }
 

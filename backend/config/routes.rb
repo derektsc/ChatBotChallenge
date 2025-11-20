@@ -14,11 +14,18 @@ Rails.application.routes.draw do
   # Rota de login: o frontend vai enviar um POST para /sessions com { name: "Fulano" }
   post '/sessions', to: 'sessions#create'
 
-  # Rotas de Rooms (PRECISAM de autenticação JWT)
+  # Rotas de Rooms
   resources :rooms, only: [:index, :show, :create, :destroy] do
     member do
       patch :close # PATCH /rooms/:id/close
     end
     resources :messages, only: [:index, :create]
   end
+
+  # Rotas de ApiConfig
+  # Como é uma configuração única do sistema, usei rotas singulares
+  get '/api_config', to: 'api_config#show'
+  post '/api_config', to: 'api_config#create'
+  patch '/api_config', to: 'api_config#update'
+  get '/api_config/models', to: 'api_config#models'
 end
