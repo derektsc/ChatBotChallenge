@@ -1,39 +1,52 @@
 services:
+  # SERVIÇO: Banco de Dados PostgreSQL
   db:
+    # IMAGEM: PostgreSQL 15 Alpine
     image: postgres:15-alpine
+    # Variáveis de ambiente para configurar o banco de dados
     environment:
       POSTGRES_USER: chatwoot
       POSTGRES_PASSWORD: chatwoot123
       POSTGRES_DB: chatwoot_development
+    # Volume persistente: os dados do banco ficam salvos mesmo após parar o container
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Expõe a porta 5432 (porta padrão do PostgreSQL) para acesso externo
     ports:
       - "5432:5432"
+    # Healthcheck: verifica se o banco está pronto antes de outros serviços iniciarem
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chatwoot -d chatwoot_development"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
+      interval: 5s # Verifica a cada 5 segundos
+      timeout: 5s # Timeout de 5 segundos
+      retries: 5 # Tenta 5 vezes antes de considerar falha
+  # SERVIÇO: Redis (Cache e ActionCable)
   redis:
+    # IMAGEM: Redis 7 Alpine
     image: redis:7-alpine
+    # Expõe a porta 6379 (porta padrão do Redis) para acesso externo
     ports:
       - "6379:6379"
+    # Healthcheck: verifica se o Redis está respondendo
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
-
+  # SERVIÇO: Backend (Rails API)
   api:
+    # Constrói a imagem a partir do Dockerfile na pasta backend
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ./backend # Pasta onde está o Dockerfile
+      dockerfile: Dockerfile # Nome do arquivo Dockerfile
+    # Volume persistente: os arquivos do projeto ficam salvos mesmo após parar o container
     volumes:
       - ./backend:/app
       - bundle_cache:/usr/local/bundle
+    # Expõe a porta 3000 (porta padrão do Rails) para acesso externo
     ports:
       - "3000:3000"
+    # Variáveis de ambiente para configurar o ambiente de desenvolvimento
     environment:
       DATABASE_URL: postgresql://chatwoot:chatwoot123@db:5432/chatwoot_development
       DB_HOST: db
@@ -42,31 +55,34 @@ services:
       DB_NAME: chatwoot_development
       REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Configurações para manter o container interativo (útil para debug)
     stdin_open: true
     tty: true
-
+  # SERVIÇO: Frontend (Vue 3 + Vite)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     command: npm run dev -- --host 0.0.0.0
+    # Volumes: sincroniza arquivos locais com o container
     volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
       - "5173:5173"
     environment:
+      # URL da API backend (usada pelo Axios)
       VITE_API_URL: http://localhost:3000
+      # URL do WebSocket para ActionCable
       VITE_WS_URL: ws://localhost:3000/cable
     depends_on:
       - api
-
+# Volumes nomeados que persistem dados mesmo após parar os containers
 volumes:
-  postgres_data:
-  bundle_cache:
+  postgres_data:  # Dados do PostgreSQL (tabelas, índices, etc)
+  bundle_cache: # Cache das gems Ruby instaladas (acelera rebuilds)

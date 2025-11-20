@@ -10,55 +10,57 @@ Sistema de chat em tempo real similar ao Chatwoot, desenvolvido com Ruby on Rail
 
 ## 📋 Pré-requisitos
 
-### Requisitos Mínimos
-
-- **Docker Desktop** (versão 20.10 ou superior)
+- **Docker Desktop** instalado e rodando
   - Windows: [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
   - Linux: Docker Engine + Docker Compose
   - macOS: [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-
-### Requisitos Adicionais (Opcional)
-- **Make** (para usar comandos `make`)
+- **Git** instalado
+- **Make** (opcional, mas recomendado)
 
 ## 🛠️ Como executar
 
-### Windows
+### Passo a passo completo
 
-#### Opção 1: Usando Make (recomendado com WSL2 ou Git Bash)
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/derektsc/ChatBotChallenge.git
+   cd ChatBotChallenge
+   ```
 
-1. Instale o Docker Desktop for Windows
-2. Instale WSL2 ou Git Bash (para usar comandos `make`)
-3. Abra o terminal (WSL2 ou Git Bash)
-4. Execute:sh
-make setup
-make up
+2. **Certifique-se de que o Docker Desktop está rodando**
 
-#### Opção 2: Usando Docker Compose diretamente (sem Make)
+3. **Execute o setup inicial (primeira vez):**
+   ```bash
+   make setup
+   ```
+   Ou sem Make:
+   ```bash
+   docker compose build
+   ```
 
-1. Instale o Docker Desktop for Windows
-2. Abra PowerShell ou CMD
-3. Execute:shell
-docker compose build
-docker compose up -d
+4. **Suba os serviços:**
+   ```bash
+   make up
+   ```
+   Ou sem Make:
+   ```bash
+   docker compose up -d
+   ```
 
-### Linux
-1. Instale Docker, Docker Compose e Make:
-2. Execute no terminal:
-make setup
-make up
-
-### Setup inicial (primeira vez)
-- execute no terminal "make setup"
-- execute no terminal "make up"     estará disponível em: (http://localhost:5173)
+5. **Acesse a aplicação:**
+   - http://localhost:5173
 
 ### Outros comandos úteis
-- make down          # Parar todos os serviços
-- make logs          # Ver logs de todos os serviços
-- make api-logs      # Ver logs apenas do backend
-- make frontend-logs # Ver logs apenas do frontend
-- make rails-console # Abrir console do Rails
-- make restart       # Reiniciar todos os serviços
-- make clean         # Parar e remover volumes (limpar banco)
+
+```bash
+make down          # Parar todos os serviços
+make logs          # Ver logs de todos os serviços
+make api-logs      # Ver logs apenas do backend
+make frontend-logs # Ver logs apenas do frontend
+make rails-console # Abrir console do Rails
+make restart       # Reiniciar todos os serviços
+make clean         # Parar e remover volumes (limpar banco)
+```
 
 ### Autenticação
 - `POST /sessions` - Login
