@@ -16,18 +16,17 @@ Sistema de chat em tempo real similar ao Chatwoot, desenvolvido com Ruby on Rail
 ## 🛠️ Como executar
 
 ### Setup inicial (primeira vez)
-make setup
-make up
-estará disponível em: (http://localhost:5173)
+- make setup
+- make up     estará disponível em: (http://localhost:5173)
 
 ### Outros comandos úteis
-make down          # Parar todos os serviços
-make logs          # Ver logs de todos os serviços
-make api-logs      # Ver logs apenas do backend
-make frontend-logs # Ver logs apenas do frontend
-make rails-console # Abrir console do Rails
-make restart       # Reiniciar todos os serviços
-make clean         # Parar e remover volumes (limpar banco)
+- make down          # Parar todos os serviços
+- make logs          # Ver logs de todos os serviços
+- make api-logs      # Ver logs apenas do backend
+- make frontend-logs # Ver logs apenas do frontend
+- make rails-console # Abrir console do Rails
+- make restart       # Reiniciar todos os serviços
+- make clean         # Parar e remover volumes (limpar banco)
 
 ### Autenticação
 - `POST /sessions` - Login
