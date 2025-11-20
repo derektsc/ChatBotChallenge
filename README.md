@@ -109,20 +109,21 @@ Em produção, recomenda-se:
 
 ## 📁 Estrutura do Projeto
 ChatBotChallenge/
-├── backend/          # Aplicação Rails
-│   ├── app/
-│   │   ├── controllers/
-│   │   ├── models/
-│   │   ├── channels/    # ActionCable
-│   │   ├── jobs/        # ActiveJob (bot responses)
-│   │   └── services/    # OpenaiService
-│   └── config/
-├── frontend/         # Aplicação Vue
-│   ├── src/
-│   │   ├── components/
-│   │   ├── views/
-│   │   ├── stores/      # Pinia stores
-│   │   └── router/
-│   └── package.json
-├── docker-compose.yml
-└── Makefile
+- backend/  (Rails)
+  - app/
+    - controllers/
+    - models/
+    - channels/   (ActionCable)
+    - jobs/       (ActiveJob: respostas do bot)
+    - services/   (OpenaiService)
+  - config/
+
+- frontend/ (Vue)
+  - src/
+    - components/
+    - views/
+    - stores/     (Pinia)
+    - router/
+  - package.json
+- docker-compose.yml
+- Makefile
