@@ -10,14 +10,46 @@ Sistema de chat em tempo real similar ao Chatwoot, desenvolvido com Ruby on Rail
 
 ## 📋 Pré-requisitos
 
-- Docker e Docker Compose instalados
-- Make (opcional, mas recomendado)
+### Requisitos Mínimos
+
+- **Docker Desktop** (versão 20.10 ou superior)
+  - Windows: [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
+  - Linux: Docker Engine + Docker Compose
+  - macOS: [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
+
+### Requisitos Adicionais (Opcional)
+- **Make** (para usar comandos `make`)
 
 ## 🛠️ Como executar
 
+### Windows
+
+#### Opção 1: Usando Make (recomendado com WSL2 ou Git Bash)
+
+1. Instale o Docker Desktop for Windows
+2. Instale WSL2 ou Git Bash (para usar comandos `make`)
+3. Abra o terminal (WSL2 ou Git Bash)
+4. Execute:sh
+make setup
+make up
+
+#### Opção 2: Usando Docker Compose diretamente (sem Make)
+
+1. Instale o Docker Desktop for Windows
+2. Abra PowerShell ou CMD
+3. Execute:shell
+docker compose build
+docker compose up -d
+
+### Linux
+1. Instale Docker, Docker Compose e Make:
+2. Execute no terminal:
+make setup
+make up
+
 ### Setup inicial (primeira vez)
-- make setup
-- make up     estará disponível em: (http://localhost:5173)
+- execute no terminal "make setup"
+- execute no terminal "make up"     estará disponível em: (http://localhost:5173)
 
 ### Outros comandos úteis
 - make down          # Parar todos os serviços
